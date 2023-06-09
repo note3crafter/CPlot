@@ -113,7 +113,7 @@ database:
 # Change the settings for CPlot's economy plugin integration.
 economy:
     # Define the economy plugin, that will be used.
-    # Supported plugins: BedrockEconomy, Capital
+    # Supported plugins: BedrockEconomy, Capital, CoreV7
     provider: ""
     # Edit these settings only if you choose "Capital".
     capital:
@@ -123,6 +123,9 @@ economy:
         # in the language files, as it would be intended by SOFe, the creator of Capital.
         # Default value: "$"
         currency: "$"
+    # CoreV7 MoneySystem
+    # available: "money", "coins"
+    projectcore: "money"
 
     # Define the price it costs to claim a plot.
     claimPrice: 0.0
