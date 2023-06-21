@@ -13,6 +13,8 @@ use pocketmine\nbt\BigEndianNbtSerializer;
 use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\TreeRoot;
 use pocketmine\world\format\io\GlobalBlockStateHandlers;
+use function base64_decode;
+use function base64_encode;
 use function count;
 use function explode;
 use function get_class;
@@ -57,7 +59,9 @@ class ParseUtils {
         if (!is_string($compressedTreeRoot)) {
             throw new ParseException("Block " . get_class($block) . " could not be parsed into a string.");
         }
-        return $compressedTreeRoot;
+        // Returning only the GZIP compressed data resulted in errors e.g. when json encoding the string because of
+        // malformed UTF-8 characters. Therefore, we base64 encode the compressed data.
+        return base64_encode($compressedTreeRoot);
     }
 
     /**
@@ -88,7 +92,14 @@ class ParseUtils {
     }
 
     private static function parseBlockFromCompressedTreeRoot(string $compressedTreeRoot) : ?Block {
-        $decompressed = zlib_decode($compressedTreeRoot);
+        $decompressed = base64_decode($compressedTreeRoot, true);
+        if (!is_string($decompressed)) {
+            return null;
+        }
+        // Apparently zlib_decode() not only returns false but also issues a warning if the data could not be
+        // decompressed. (This is not stated in the php wiki.) Since PocketMine-MP automatically converts warnings to
+        // exceptions, we silence the warning here.
+        $decompressed = @zlib_decode($decompressed);
         if (!is_string($decompressed)) {
             return null;
         }
@@ -136,7 +147,7 @@ class ParseUtils {
      */
     public static function parseAliasesFromString(string $aliases) : array {
         // Only allow letters and numbers to be used in aliases
-        preg_match_all('/\w+/', $aliases, $matches);
+        preg_match_all('/[^\s,.;]+/', $aliases, $matches);
         return $matches[0];
     }
 

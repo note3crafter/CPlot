@@ -28,6 +28,7 @@ use DateTime;
 use Generator;
 use pocketmine\block\VanillaBlocks;
 use pocketmine\data\bedrock\BiomeIds;
+use pocketmine\nbt\NoSuchTagException;
 use pocketmine\player\Player;
 use pocketmine\Server;
 use pocketmine\utils\Config;
@@ -1352,6 +1353,7 @@ final class DataProvider {
             ParseUtils::parseIntegerFromArray($worldOptions, "PlotSize") ?? 32,
             ParseUtils::parseIntegerFromArray($worldOptions, "GroundHeight") ?? 64,
             -1 * (ParseUtils::parseIntegerFromArray($worldOptions, "RoadWidth") ?? 7), // MyPlot generation offset is the negative road width
+            VanillaBlocks::AIR(),
             ParseUtils::parseMyPlotBlock($worldOptions, "RoadBlock") ?? VanillaBlocks::OAK_PLANKS(),
             ParseUtils::parseMyPlotBlock($worldOptions, "WallBlock") ?? VanillaBlocks::STONE_SLAB(),
             ParseUtils::parseMyPlotBlock($worldOptions, "PlotFloorBlock") ?? VanillaBlocks::GRASS(),
@@ -1363,7 +1365,7 @@ final class DataProvider {
         // Importing the plots
         /** @var array{DataProvider: string, MySQLSettings: array{Host: string, Username: string, Password: string, DatabaseName: string, Port: int}} $myplotConfigData */
         $myplotConfigData = yaml_parse_file(Path::join($myplotPluginDataPath, "config.yml"));
-        /** @var array{UpdatePlotLiquids: bool, AllowFireTicking: bool} $myplotWorldData */
+        /** @var array{UpdatePlotLiquids: bool, AllowFireTicking?: bool} $myplotWorldData */
         $myplotWorldData = yaml_parse_file(Path::join($myplotPluginDataPath, "worlds", $worldName . ".yml"));
         switch(mb_strtolower($myplotConfigData["DataProvider"])) {
             case "sqlite":
@@ -1512,7 +1514,7 @@ final class DataProvider {
             $plot->addFlag($flag);
             yield from $this->savePlotFlag($plot, $flag);
 
-            $flag = Flags::BURNING()->createInstance($myplotWorldData["AllowFireTicking"]);
+            $flag = Flags::BURNING()->createInstance($myplotWorldData["AllowFireTicking"] ?? false);
             $plot->addFlag($flag);
             yield from $this->savePlotFlag($plot, $flag);
         }
@@ -1524,7 +1526,11 @@ final class DataProvider {
     private function createPlayerDataEntry(string $playerName) : Generator {
         // validate offline player data
         $offlineData = Server::getInstance()->getOfflinePlayerData($playerName);
-        $XUID = $offlineData?->getString("LastKnownXUID");
+        try {
+            $XUID = $offlineData?->getString("LastKnownXUID");
+        } catch (NoSuchTagException) {
+            $XUID = null;
+        }
 
         // register filler player data
         yield from $this->updatePlayerData(
